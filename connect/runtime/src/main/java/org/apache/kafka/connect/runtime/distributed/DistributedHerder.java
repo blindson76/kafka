@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.connect.runtime.distributed;
 
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.ConfigDef;
@@ -313,10 +314,18 @@ public class DistributedHerder extends AbstractHerder implements Runnable {
         LogContext logContext = new LogContext("[Worker clientId=" + clientId + ", groupId=" + this.workerGroupId + "] ");
         log = logContext.logger(DistributedHerder.class);
 
+        String clusterAssignorClass = config.uberClusterAssignor();
+        final ClusterAssignor clusterAssignor;
+        if (clusterAssignorClass != null) {
+            clusterAssignor = plugins().newPlugin(clusterAssignorClass, config, ClusterAssignor.class);
+        } else {
+            clusterAssignor = null;
+        }
+
         this.member = member != null
                       ? member
                       : new WorkerGroupMember(config, restUrl, this.configBackingStore,
-                              new RebalanceListener(time), time, clientId, logContext);
+                              new RebalanceListener(time), clusterAssignor, time, clientId, logContext);
 
         this.herderExecutor = new ThreadPoolExecutor(1, 1, 0L,
                 TimeUnit.MILLISECONDS,
@@ -1634,16 +1643,20 @@ public class DistributedHerder extends AbstractHerder implements Runnable {
     }
 
     @Override
-    protected void modifyConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, Callback<Message> callback) {
+    protected void uberModifyConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, boolean uberForce, Callback<Message> callback) {
         log.trace("Submitting {} offsets request for connector '{}'", offsets == null ? "reset" : "alter", connName);
 
         addRequest(() -> {
-            if (!modifyConnectorOffsetsChecks(connName, callback)) {
+            if (!modifyConnectorOffsetsChecks(connName, uberForce, callback)) {
                 return null;
             }
             // At this point, we should be the leader (the call to modifyConnectorOffsetsChecks makes sure of that) and can safely run
             // a zombie fencing request
             if (isSourceConnector(connName) && config.exactlyOnceSourceEnabled()) {
+                if (uberForce) {
+                    callback.onCompletion(new BadRequestException("Offset alterations cannot be forced for exactly-once source connectors"), null);
+                    return null;
+                }
                 log.debug("Performing a round of zombie fencing before modifying offsets for source connector {} with exactly-once support enabled.", connName);
                 doFenceZombieSourceTasks(connName, (error, ignored) -> {
                     if (error != null) {
@@ -1655,7 +1668,7 @@ public class DistributedHerder extends AbstractHerder implements Runnable {
                         // zombie fencing is done asynchronously and the conditions could have changed since the previous check
                         addRequest(() -> {
                             try (TickThreadStage stage = new TickThreadStage("modifying offsets for connector " + connName)) {
-                                if (modifyConnectorOffsetsChecks(connName, callback)) {
+                                if (modifyConnectorOffsetsChecks(connName, false, callback)) {
                                     worker.modifyConnectorOffsets(connName, configState.connectorConfig(connName), offsets, callback);
                                 }
                             }
@@ -1676,10 +1689,11 @@ public class DistributedHerder extends AbstractHerder implements Runnable {
      * This method performs a few checks for external requests to modify (alter or reset) connector offsets and
      * completes the callback exceptionally if any check fails.
      * @param connName the name of the connector whose offsets are to be modified
+     * @param uberForce force the offset modification to take place even if the connector is not stopped
      * @param callback callback to invoke upon completion
      * @return true if all the checks passed, false otherwise
      */
-    private boolean modifyConnectorOffsetsChecks(String connName, Callback<Message> callback) {
+    private boolean modifyConnectorOffsetsChecks(String connName, boolean uberForce, Callback<Message> callback) {
         if (checkRebalanceNeeded(callback)) {
             return false;
         }
@@ -1703,9 +1717,14 @@ public class DistributedHerder extends AbstractHerder implements Runnable {
         // Zombie tasks are handled by a round of zombie fencing for exactly once source connectors. Zombie sink tasks are handled
         // naturally because requests to alter consumer group offsets / delete consumer groups will fail if there are still active members
         // in the group.
-        if (configState.targetState(connName) != TargetState.STOPPED || configState.taskCount(connName) != 0) {
-            callback.onCompletion(new BadRequestException("Connectors must be in the STOPPED state before their offsets can be modified. This can be done " +
-                    "for the specified connector by issuing a 'PUT' request to the '/connectors/" + connName + "/stop' endpoint"), null);
+        if (!uberForce && (configState.targetState(connName) != TargetState.STOPPED || configState.taskCount(connName) != 0)) {
+            String message = "Connectors must be in the STOPPED state before their offsets can be modified. This can be done "
+                    + "for the specified connector by issuing a 'PUT' request to the '/connectors/" + connName + "/stop' endpoint. "
+                    + "Alternatively, for offset alterations (but not resets), you may force the request to take place via the ?uber-force=true "
+                    + "URL query parameter; however, in order for the change to take effect properly, the connector must not be "
+                    + "actively processing data for the affected offsets (e.g., if it's replicating from a Kafka topic t1, you must not "
+                    + "alter offsets for the t1 topic, but you may alter offsets for topics t2, t3, etc.)";
+            callback.onCompletion(new BadRequestException(message), null);
             return false;
         }
         return true;
@@ -2813,6 +2832,20 @@ public class DistributedHerder extends AbstractHerder implements Runnable {
             result = result.path(namespacePath);
         }
         return result;
+    }
+
+    @Override
+    public int uberClusterSize() {
+        if (assignment == null) {
+            log.warn("Worker does not currently have an assignment; cannot provide cluster size to connector");
+            return -1;
+        }
+        if (assignment instanceof UberAssignmentV1 uberAssignment) {
+            return uberAssignment.clusterSize();
+        } else {
+            log.warn("Cluster is not currently running with Uber rebalance protocol; cannot provide cluster size to connector");
+            return -1;
+        }
     }
 
     private synchronized void recordTickThreadStage(String description) {

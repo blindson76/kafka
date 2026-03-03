@@ -60,6 +60,16 @@ public class SinkConnectorTest extends ConnectorTest {
             // Unexpected in these tests
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public List<Map<String, String>> uberTaskConfigs() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int uberClusterSize() {
+            throw new UnsupportedOperationException();
+        }
     }
 
     protected static class TestSinkConnector extends SinkConnector implements ConnectorTest.AssertableConnector {

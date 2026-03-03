@@ -717,7 +717,11 @@ abstract class EmbeddedConnect {
      * @return the API response as a {@link java.lang.String}
      */
     public String alterConnectorOffsets(String connectorName, ConnectorOffsets offsets) {
-        String url = endpointForResource(String.format("connectors/%s/offsets", connectorName));
+        return alterConnectorOffsets(connectorName, offsets, false);
+    }
+
+    public String alterConnectorOffsets(String connectorName, ConnectorOffsets offsets, Boolean force) {
+        String url = endpointForResource(String.format("connectors/%s/offsets%s", connectorName, force != null ? "?uber-force=" + force : ""));
         ObjectMapper mapper = new ObjectMapper();
         String content;
         try {

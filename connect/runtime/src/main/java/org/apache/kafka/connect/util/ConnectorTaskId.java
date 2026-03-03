@@ -56,4 +56,12 @@ public record ConnectorTaskId(String connector, int task) implements Serializabl
             return connectorCmp;
         return Integer.compare(task, o.task);
     }
+
+    public com.uber.data.kafka.connect.distributed.ConnectorTaskId uberToPublicApi() {
+        return new com.uber.data.kafka.connect.distributed.ConnectorTaskId(connector, task);
+    }
+
+    public static ConnectorTaskId uberFromPublicApi(com.uber.data.kafka.connect.distributed.ConnectorTaskId connectorTaskId) {
+        return new ConnectorTaskId(connectorTaskId.connector(), connectorTaskId.task());
+    }
 }

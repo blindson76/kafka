@@ -72,7 +72,7 @@ public class WorkerGroupMemberTest {
         doReturn("cluster-1").when(config).kafkaClusterId();
 
         LogContext logContext = new LogContext("[Worker clientId=client-1 + groupId= group-1]");
-        member = new WorkerGroupMember(config, "", configBackingStore, null, Time.SYSTEM, "client-1", logContext);
+        member = new WorkerGroupMember(config, "", configBackingStore, null, null, Time.SYSTEM, "client-1", logContext);
 
         verify(config, atLeastOnce()).kafkaClusterId();
         boolean foundMockReporter = false;
@@ -115,7 +115,7 @@ public class WorkerGroupMemberTest {
         doReturn("cluster-1").when(config).kafkaClusterId();
 
         LogContext logContext = new LogContext("[Worker clientId=client-1 + groupId= group-1]");
-        member = new WorkerGroupMember(config, "", configBackingStore, null, Time.SYSTEM, "client-1", logContext);
+        member = new WorkerGroupMember(config, "", configBackingStore, null, null, Time.SYSTEM, "client-1", logContext);
 
         verify(config, atLeastOnce()).kafkaClusterId();
         assertTrue(member.metrics().reporters().isEmpty());

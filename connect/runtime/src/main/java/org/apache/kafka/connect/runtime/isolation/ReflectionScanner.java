@@ -92,7 +92,8 @@ public class ReflectionScanner extends PluginScanner {
                   getPredicatePluginDesc(source, classGraph),
                   getServiceLoaderPluginDesc(PluginType.CONFIGPROVIDER, source),
                   getServiceLoaderPluginDesc(PluginType.REST_EXTENSION, source),
-                  getServiceLoaderPluginDesc(PluginType.CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY, source)
+                  getServiceLoaderPluginDesc(PluginType.CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY, source),
+                  getServiceLoaderPluginDesc(PluginType.CLUSTER_ASSIGNOR, source)
           );
         }
     }

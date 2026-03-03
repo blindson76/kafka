@@ -150,6 +150,7 @@ public class WorkerCoordinatorTest {
                                                  LEADER_URL,
                                                  configStorage,
                                                  rebalanceListener,
+                                                 null,
                                                  compatibility,
                                                  0);
 

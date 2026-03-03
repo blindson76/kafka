@@ -159,6 +159,7 @@ public class WorkerCoordinatorIncrementalTest {
             expectedUrl(leaderId),
             configStorage,
             rebalanceListener,
+            null,
             compatibility,
             rebalanceDelay);
 

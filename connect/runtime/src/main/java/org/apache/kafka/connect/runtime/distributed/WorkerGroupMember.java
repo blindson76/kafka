@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.connect.runtime.distributed;
 
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.ClientUtils;
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -68,6 +69,7 @@ public class WorkerGroupMember {
     private final String clientId;
     private final ConsumerNetworkClient client;
     private final Metrics metrics;
+    private final ClusterAssignor clusterAssignor;
     private final WorkerCoordinator coordinator;
 
     private boolean stopped = false;
@@ -76,6 +78,7 @@ public class WorkerGroupMember {
                              String restUrl,
                              ConfigBackingStore configStorage,
                              WorkerRebalanceListener listener,
+                             ClusterAssignor clusterAssignor,
                              Time time,
                              String clientId,
                              LogContext logContext) {
@@ -133,6 +136,7 @@ public class WorkerGroupMember {
                     retryBackoffMs,
                     config.getInt(CommonClientConfigs.REQUEST_TIMEOUT_MS_CONFIG),
                     Integer.MAX_VALUE);
+            this.clusterAssignor = clusterAssignor;
             this.coordinator = new WorkerCoordinator(
                     new GroupRebalanceConfig(config, GroupRebalanceConfig.ProtocolType.CONNECT),
                     logContext,
@@ -143,6 +147,7 @@ public class WorkerGroupMember {
                     restUrl,
                     configStorage,
                     listener,
+                    clusterAssignor,
                     ConnectProtocolCompatibility.compatibility(config.getString(DistributedConfig.CONNECT_PROTOCOL_CONFIG)),
                     config.getInt(DistributedConfig.SCHEDULED_REBALANCE_MAX_DELAY_MS_CONFIG));
 
@@ -230,6 +235,7 @@ public class WorkerGroupMember {
         Utils.closeQuietly(coordinator, "coordinator", firstException);
         Utils.closeQuietly(metrics, "consumer metrics", firstException);
         Utils.closeQuietly(client, "consumer network client", firstException);
+        Utils.closeQuietly(clusterAssignor, "cluster assignor", firstException);
         AppInfoParser.unregisterAppInfo(JMX_PREFIX, clientId, metrics);
         if (firstException.get() != null && !swallowException)
             throw new KafkaException("Failed to stop the Connect group member", firstException.get());

@@ -53,6 +53,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -98,7 +99,9 @@ public class JsonConverter implements Converter, HeaderConverter, Versioned {
             // If the map uses strings for keys, it should be encoded in the natural JSON format. If it uses other
             // primitive types or a complex type as a key, it will be encoded as a list of pairs. If we don't have a
             // schema, we default to encoding in a Map.
-            Map<Object, Object> result = new HashMap<>();
+            // Use a LinkedHashMap to preserve ordering of key/value pairs
+            // TODO: Upstream this change
+            Map<Object, Object> result = new LinkedHashMap<>();
             if (schema == null || keySchema.type() == Schema.Type.STRING) {
                 if (!value.isObject())
                     throw new DataException("Maps with string fields should be encoded as JSON objects, but found " + value.getNodeType());

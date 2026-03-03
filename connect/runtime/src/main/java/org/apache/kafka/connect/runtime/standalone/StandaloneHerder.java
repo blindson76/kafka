@@ -424,8 +424,8 @@ public final class StandaloneHerder extends AbstractHerder {
     }
 
     @Override
-    protected synchronized void modifyConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, Callback<Message> cb) {
-        if (!modifyConnectorOffsetsChecks(connName, cb)) {
+    protected synchronized void uberModifyConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, boolean uberForce, Callback<Message> cb) {
+        if (!modifyConnectorOffsetsChecks(connName, uberForce, cb)) {
             return;
         }
 
@@ -436,18 +436,24 @@ public final class StandaloneHerder extends AbstractHerder {
      * This method performs a few checks for external requests to modify (alter or reset) connector offsets and
      * completes the callback exceptionally if any check fails.
      * @param connName the name of the connector whose offsets are to be modified
+     * @param uberForce force the offset modification to take place even if the connector is not stopped
      * @param cb callback to invoke upon completion
      * @return true if all the checks passed, false otherwise
      */
-    private boolean modifyConnectorOffsetsChecks(String connName, Callback<Message> cb) {
+    private boolean modifyConnectorOffsetsChecks(String connName, boolean uberForce, Callback<Message> cb) {
         if (!configState.contains(connName)) {
             cb.onCompletion(new NotFoundException("Connector " + connName + " not found", null), null);
             return false;
         }
 
-        if (configState.targetState(connName) != TargetState.STOPPED || configState.taskCount(connName) != 0) {
-            cb.onCompletion(new BadRequestException("Connectors must be in the STOPPED state before their offsets can be modified. This can be done " +
-                    "for the specified connector by issuing a 'PUT' request to the '/connectors/" + connName + "/stop' endpoint"), null);
+        if (!uberForce && (configState.targetState(connName) != TargetState.STOPPED || configState.taskCount(connName) != 0)) {
+            String message = "Connectors must be in the STOPPED state before their offsets can be modified. This can be done "
+                    + "for the specified connector by issuing a 'PUT' request to the '/connectors/" + connName + "/stop' endpoint. "
+                    + "Alternatively, for offset alterations (but not resets), you may force the request to take place via the ?uber-force=true "
+                    + "URL query parameter; however, in order for the change to take effect properly, the connector must not be "
+                    + "actively processing data for the affected offsets (e.g., if it's replicating from a Kafka topic t1, you must not "
+                    + "alter offsets for the t1 topic, but you may alter offsets for topics t2, t3, etc.)";
+            cb.onCompletion(new BadRequestException(message), null);
             return false;
         }
 

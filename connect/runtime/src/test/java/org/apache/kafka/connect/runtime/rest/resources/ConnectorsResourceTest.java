@@ -869,7 +869,7 @@ public class ConnectorsResourceTest {
     @Test
     public void testAlterOffsetsEmptyOffsets() {
         assertThrows(BadRequestException.class, () -> connectorsResource.alterConnectorOffsets(
-                false, NULL_HEADERS, CONNECTOR_NAME, new ConnectorOffsets(List.of())));
+                false, NULL_HEADERS, CONNECTOR_NAME, new ConnectorOffsets(List.of()), false));
     }
 
     @Test
@@ -880,11 +880,11 @@ public class ConnectorsResourceTest {
         ConnectorOffsets body = new ConnectorOffsets(List.of(connectorOffset));
 
         final ArgumentCaptor<Callback<Message>> cb = ArgumentCaptor.forClass(Callback.class);
-        expectAndCallbackNotLeaderException(cb).when(herder).alterConnectorOffsets(eq(CONNECTOR_NAME), eq(body.toMap()), cb.capture());
+        expectAndCallbackNotLeaderException(cb).when(herder).uberAlterConnectorOffsets(eq(CONNECTOR_NAME), eq(body.toMap()), eq(false), cb.capture());
 
         when(restClient.httpRequest(eq(LEADER_URL + "connectors/" + CONNECTOR_NAME + "/offsets?forward=true"), eq("PATCH"), isNull(), eq(body), any()))
                 .thenReturn(new RestClient.HttpResponse<>(200, new HashMap<>(), new Message("")));
-        connectorsResource.alterConnectorOffsets(null, NULL_HEADERS, CONNECTOR_NAME, body);
+        connectorsResource.alterConnectorOffsets(null, NULL_HEADERS, CONNECTOR_NAME, body, false);
     }
 
     @Test
@@ -895,9 +895,9 @@ public class ConnectorsResourceTest {
         ConnectorOffsets body = new ConnectorOffsets(List.of(connectorOffset));
         final ArgumentCaptor<Callback<Message>> cb = ArgumentCaptor.forClass(Callback.class);
         expectAndCallbackException(cb, new NotFoundException("Connector not found"))
-                .when(herder).alterConnectorOffsets(eq(CONNECTOR_NAME), eq(body.toMap()), cb.capture());
+                .when(herder).uberAlterConnectorOffsets(eq(CONNECTOR_NAME), eq(body.toMap()), eq(false), cb.capture());
 
-        assertThrows(NotFoundException.class, () -> connectorsResource.alterConnectorOffsets(null, NULL_HEADERS, CONNECTOR_NAME, body));
+        assertThrows(NotFoundException.class, () -> connectorsResource.alterConnectorOffsets(null, NULL_HEADERS, CONNECTOR_NAME, body, false));
     }
 
     @Test
@@ -912,8 +912,8 @@ public class ConnectorsResourceTest {
         doAnswer(invocation -> {
             cb.getValue().onCompletion(null, msg);
             return null;
-        }).when(herder).alterConnectorOffsets(eq(CONNECTOR_NAME), eq(body.toMap()), cb.capture());
-        Response response = connectorsResource.alterConnectorOffsets(null, NULL_HEADERS, CONNECTOR_NAME, body);
+        }).when(herder).uberAlterConnectorOffsets(eq(CONNECTOR_NAME), eq(body.toMap()), eq(false), cb.capture());
+        Response response = connectorsResource.alterConnectorOffsets(null, NULL_HEADERS, CONNECTOR_NAME, body, false);
         assertEquals(200, response.getStatus());
         assertEquals(msg, response.getEntity());
     }

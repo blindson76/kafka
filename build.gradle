@@ -41,6 +41,9 @@ plugins {
   id 'org.scoverage' version '8.1' apply false
   id 'com.gradleup.shadow' version '8.3.9' apply false
   id 'com.diffplug.spotless' version "8.0.0"
+
+  id 'application'
+
 }
 
 ext {
@@ -168,6 +171,14 @@ allprojects {
 
   repositories {
     mavenCentral()
+    maven {
+      url 'http://artifactory.uber.internal:4587/artifactory/libs-release-local/'
+      allowInsecureProtocol = true
+      metadataSources {
+        mavenPom()
+        artifact()
+      }
+    }
   }
 
   dependencyUpdates {
@@ -3633,6 +3644,10 @@ project(':connect:runtime') {
     implementation libs.classgraph
     implementation libs.mavenArtifact
     implementation libs.swaggerAnnotations
+    // TODO: We should not be hacking the :connect:runtime module with our own dependencies; instead,
+    //       we should be adding them to the classpath
+    //       This is also causing embedded integration tests to fail ☹️
+    implementation ('com.uber.kafka:kafka-upki-provider:1.0.1-217732-a4c6b554904e-java-monorepo')
 
     compileOnly libs.bndlib
     compileOnly libs.spotbugs
@@ -3662,7 +3677,8 @@ project(':connect:runtime') {
     testImplementation libs.junitJupiter
     testImplementation libs.mockitoCore
     testImplementation libs.mockitoJunitJupiter
-    testImplementation libs.httpclient
+    // TODO: Conflicts with Kafka UPKI provider
+//    testImplementation libs.httpclient
     testImplementation testLog4j2Libs
 
     testCompileOnly libs.bndlib
@@ -3953,6 +3969,92 @@ project(':connect:mirror-client') {
 
   javadoc {
     enabled = true
+  }
+
+  tasks.create(name: "copyDependantLibs", type: Copy) {
+    from (configurations.runtimeClasspath) {
+      exclude('kafka-clients*')
+      exclude('connect-*')
+    }
+    into "${layout.buildDirectory.get().asFile.path}/dependant-libs"
+    duplicatesStrategy 'exclude'
+  }
+
+  jar {
+    dependsOn copyDependantLibs
+  }
+}
+
+project(':connect:uber') {
+  base {
+    archivesName = "connect-uber"
+  }
+
+  task genUReplicator3Config(type: JavaExec) {
+    classpath sourceSets.main.runtimeClasspath
+    classpath sourceSets.main.compileClasspath
+    mainClass = 'com.uber.data.kafka.connect.ureplicator3.UReplicator3ConnectorConfig'
+    if( !generatedDocsDir.exists() ) { generatedDocsDir.mkdirs() }
+    standardOutput = new File(generatedDocsDir, "ureplicator3_config.html").newOutputStream()
+  }
+
+  dependencies {
+    implementation 'com.google.guava:guava:23.0'
+    implementation 'com.uber.m3:tally-core:0.11.1'
+    implementation 'com.uber.m3:tally-m3:0.11.1'
+    implementation('com.uber.data:streaming-common:1.13.1-230620-a54bfb9c5127-java-monorepo') {
+      exclude group: 'jakarta.annotation', module: 'jakarta.annotation-api'
+      exclude group: 'jakarta.ws.rs', module: 'jakarta.ws.rs-api'
+      exclude group: 'jakarta.servlet', module: 'jakarta.servlet-api'
+      exclude group: 'jakarta.validation', module: 'jakarta.validation-api'
+    }
+    implementation 'com.alibaba:fastjson:1.1.41'
+    implementation 'com.google.guava:guava:23.0'
+
+    implementation('io.opentracing.contrib:opentracing-apache-httpclient:0.3.3') {
+      /*
+          opentracing client is using 0.33.0 of opentracing-api and conflict with 0.32 used in javamonorepo, the only way is to downgrade it.
+          Monorepo won't ugprade opentracing to 0.33 due to https://t3.uberinternal.com/browse/JAG-2163
+          More details: https://github.com/opentracing/opentracing-java/blob/master/CHANGELOG.md#v0330-2019-05-06
+       */
+      exclude group: 'io.opentracing', module: 'opentracing-api'
+      exclude group: 'io.opentracing', module: 'opentracing-util'
+    }
+    implementation libs.slf4jApi
+    implementation libs.swaggerAnnotations
+
+    compileOnly libs.jakartaRsApi
+    compileOnly libs.jakartaServletApi
+    compileOnly libs.jaxAnnotationApi
+    compileOnly libs.jerseyContainerServlet
+    compileOnly project(':connect:api')
+    compileOnly project(':clients')
+    compileOnly project(':connect:runtime')
+    compileOnly project(':connect:mirror')
+
+    testImplementation testLog4j2Libs
+    testImplementation libs.jakartaRsApi
+    testImplementation libs.junitJupiter
+    testImplementation libs.bndlib
+    testImplementation libs.mockitoCore
+    testImplementation project(':clients').sourceSets.test.output
+    testImplementation project(':connect:runtime')
+    testImplementation project(':connect:runtime').sourceSets.test.output
+    testImplementation project(':connect:mirror')
+    testImplementation project(':connect:mirror-client')
+    testImplementation project(':core')
+    testImplementation project(':test-common:test-common-runtime')
+    testImplementation project(':raft')
+    testImplementation project(':server')
+    testImplementation project(':server-common')
+
+    testRuntimeOnly project(':connect:runtime')
+    testRuntimeOnly libs.bcpkix
+    testRuntimeOnly runtimeTestLibs
+  }
+
+  javadoc {
+    enabled = false
   }
 
   tasks.create(name: "copyDependantLibs", type: Copy) {

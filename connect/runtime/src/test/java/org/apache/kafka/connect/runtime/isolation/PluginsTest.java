@@ -115,6 +115,7 @@ public class PluginsTest {
             new TreeSet<>(),
             new TreeSet<>(),
             new TreeSet<>(),
+            new TreeSet<>(),
             new TreeSet<>()
         );
         empty = new PluginScanResult(List.of());

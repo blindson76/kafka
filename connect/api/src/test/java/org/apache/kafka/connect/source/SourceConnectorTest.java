@@ -66,6 +66,16 @@ public class SourceConnectorTest extends ConnectorTest {
         public OffsetStorageReader offsetStorageReader() {
             return null;
         }
+
+        @Override
+        public List<Map<String, String>> uberTaskConfigs() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int uberClusterSize() {
+            throw new UnsupportedOperationException();
+        }
     }
 
     private static class TestSourceConnector extends SourceConnector implements AssertableConnector {

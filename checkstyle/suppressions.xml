@@ -21,6 +21,9 @@
 -->
 <suppressions>
 
+    <!-- Disable Checkstyle for our internal Connect module (we may selectively enable some checks in the future) -->
+    <suppress checks="." files="com[\\/]uber[\\/]data[\\/]kafka[\\/]connect[\\/]"/>
+
     <!-- Note that [/\\] must be used as the path separator for cross-platform support -->
 
     <!-- Generator -->
@@ -378,5 +381,8 @@
 
      <!-- Add the new suppression rule for JaasTestUtils.java -->
     <suppress checks="ImportControl" files="(JaasTestUtils).java" />
+
+    <!-- Uber -->
+    <suppress checks="Header" files="(Uber.*|WorkloadProvider).java" />
 
 </suppressions>

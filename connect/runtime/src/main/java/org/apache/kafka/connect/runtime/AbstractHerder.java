@@ -1241,26 +1241,31 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
     }
 
     @Override
-    public void alterConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, Callback<Message> callback) {
+    public void uberAlterConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, boolean uberForce, Callback<Message> callback) {
         if (offsets == null || offsets.isEmpty()) {
             callback.onCompletion(new ConnectException("The offsets to be altered may not be null or empty"), null);
             return;
         }
-        modifyConnectorOffsets(connName, offsets, callback);
+        uberModifyConnectorOffsets(connName, offsets, uberForce, callback);
     }
 
     @Override
     public void resetConnectorOffsets(String connName, Callback<Message> callback) {
-        modifyConnectorOffsets(connName, null, callback);
+        uberModifyConnectorOffsets(connName, null, false, callback);
+    }
+
+    public void modifyConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, Callback<Message> cb) {
+        uberModifyConnectorOffsets(connName, offsets, false, cb);
     }
 
     /**
      * Service external requests to alter or reset connector offsets.
      * @param connName the name of the connector whose offsets are to be modified
      * @param offsets the offsets to be written; this should be {@code null} for offsets reset requests
+     * @param uberForce force the offset modification to take place even if the connector is not stopped
      * @param cb callback to invoke upon completion
      */
-    protected abstract void modifyConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, Callback<Message> cb);
+    protected abstract void uberModifyConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, boolean uberForce, Callback<Message> cb);
 
     @Override
     public LoggerLevel loggerLevel(String logger) {
@@ -1282,5 +1287,13 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
         }
 
         return loggers.setLevel(namespace, normalizedLevel);
+    }
+
+    public ClusterConfigState uberConfigSnapshot() {
+        return configBackingStore.snapshot();
+    }
+
+    public int uberClusterSize() {
+        return 1;
     }
 }

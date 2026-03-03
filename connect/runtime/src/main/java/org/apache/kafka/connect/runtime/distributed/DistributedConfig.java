@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.connect.runtime.distributed;
 
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.MetadataRecoveryStrategy;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -182,7 +183,7 @@ public final class DistributedConfig extends WorkerConfig {
      */
     public static final String CONNECT_PROTOCOL_CONFIG = "connect.protocol";
     public static final String CONNECT_PROTOCOL_DOC = "Compatibility mode for Kafka Connect Protocol";
-    public static final String CONNECT_PROTOCOL_DEFAULT = ConnectProtocolCompatibility.SESSIONED.toString();
+    public static final String CONNECT_PROTOCOL_DEFAULT = ConnectProtocolCompatibility.UBER_V1.toString();
 
     /**
      * <code>scheduled.rebalance.max.delay.ms</code>
@@ -255,6 +256,13 @@ public final class DistributedConfig extends WorkerConfig {
             + "<a href=\"https://kafka.apache.org/documentation.html#connect_exactlyoncesource\">exactly-once source support documentation</a>.";
     public static final String EXACTLY_ONCE_SOURCE_SUPPORT_DEFAULT = ExactlyOnceSourceSupport.DISABLED.toString();
 
+    public static final String UBER_CLUSTER_ASSIGNOR_CONFIG = "uber.cluster.assignor";
+    public static final String UBER_CLUSTER_ASSIGNOR_DOC = "Implementation of the "
+            + ClusterAssignor.class.getName() + " interface that will be used to assign connectors and tasks "
+            + "to workers during rebalances, possibly taking into account the workloads of each connector and task. "
+            + "If left unset, then the default Kafka Connect rebalancing algorithm will be used instead, "
+            + "which does not take workload into account and weighs all tasks equally";
+
     private static Object defaultKeyGenerationAlgorithm(Crypto crypto) {
         try {
             validateKeyAlgorithm(crypto, INTER_WORKER_KEY_GENERATION_ALGORITHM_CONFIG, INTER_WORKER_KEY_GENERATION_ALGORITHM_DEFAULT);
@@ -309,7 +317,7 @@ public final class DistributedConfig extends WorkerConfig {
 
     @SuppressWarnings("unchecked")
     private static ConfigDef config(Crypto crypto) {
-        return baseConfigDef()
+        return addUberExtensions(baseConfigDef())
             .define(GROUP_ID_CONFIG,
                     ConfigDef.Type.STRING,
                     ConfigDef.Importance.HIGH,
@@ -587,6 +595,10 @@ public final class DistributedConfig extends WorkerConfig {
         return getString(GROUP_ID_CONFIG);
     }
 
+    public String uberClusterAssignor() {
+        return getString(UBER_CLUSTER_ASSIGNOR_CONFIG);
+    }
+
     @Override
     protected Map<String, Object> postProcessParsedConfig(final Map<String, Object> parsedValues) {
         CommonClientConfigs.warnDisablingExponentialBackoff(this);
@@ -603,6 +615,11 @@ public final class DistributedConfig extends WorkerConfig {
         this.crypto = crypto;
         exactlyOnceSourceSupport = ExactlyOnceSourceSupport.fromProperty(getString(EXACTLY_ONCE_SOURCE_SUPPORT_CONFIG));
         validateInterWorkerKeyConfigs();
+        if (ConnectProtocolCompatibility.compatibility(getString(CONNECT_PROTOCOL_CONFIG)) == ConnectProtocolCompatibility.UBER_V1) {
+            if (uberClusterAssignor() == null) {
+                throw new IllegalStateException("Cannot use protocol " + ConnectProtocolCompatibility.UBER_V1.protocol() + " without also specifying a cluster assignor ");
+            }
+        }
     }
 
     public static void main(String[] args) {
@@ -720,6 +737,15 @@ public final class DistributedConfig extends WorkerConfig {
             }
         }
         return result;
+    }
+
+    private static ConfigDef addUberExtensions(ConfigDef baseConfigDef) {
+        return baseConfigDef
+                .define(UBER_CLUSTER_ASSIGNOR_CONFIG,
+                        ConfigDef.Type.STRING,
+                        null, // Null instead of ConfigDef.NO_DEFAULT_VALUE to signify that the property is optional
+                        ConfigDef.Importance.HIGH,
+                        UBER_CLUSTER_ASSIGNOR_DOC);
     }
 
 }

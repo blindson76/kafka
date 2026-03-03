@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -600,7 +601,7 @@ public class OffsetsApiIntegrationTest {
         // The TestableSourceConnector has a source partition per task
         for (int i = 0; i < NUM_TASKS; i++) {
             offsetsToAlter.add(
-                    new ConnectorOffset(Map.of("task.id", connectorName + "-" + i), Map.of("saved", 5))
+                    new ConnectorOffset(sourcePartition(i), Map.of("saved", 5))
             );
         }
 
@@ -620,7 +621,7 @@ public class OffsetsApiIntegrationTest {
         // The TestableSourceConnector has a source partition per task
         for (int i = 0; i < NUM_TASKS; i++) {
             offsetsToAlter.add(
-                    new ConnectorOffset(Map.of("task.id", connectorName + "-" + i), Map.of("saved", 7))
+                    new ConnectorOffset(sourcePartition(i), Map.of("saved", 7))
             );
         }
 
@@ -1081,5 +1082,36 @@ public class OffsetsApiIntegrationTest {
             ConnectorOffsets offsets = connect.connectorOffsets(connectorName);
             return offsets.offsets().isEmpty();
         }, OFFSET_READ_TIMEOUT_MS, "Connector offsets should be empty after resetting offsets");
+    }
+
+    private Map<String, Object> sourcePartition(int taskId) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("task.id", connectorName + "-" + taskId);
+        result.put("property-a", "a");
+        result.put("property-b", "b");
+        result.put("property-c", "c");
+        result.put("property-d", "d");
+        result.put("property-e", "e");
+        result.put("property-f", "f");
+        result.put("property-g", "g");
+        result.put("property-h", "h");
+        result.put("property-i", "i");
+        result.put("property-j", "j");
+        result.put("property-k", "k");
+        result.put("property-l", "l");
+        result.put("property-m", "m");
+        result.put("property-n", "n");
+        result.put("property-o", "o");
+        result.put("property-p", "p");
+        result.put("property-q", "q");
+        result.put("property-r", "r");
+        result.put("property-s", "s");
+        result.put("property-t", "t");
+        result.put("property-u", "u");
+        result.put("property-v", "v");
+        result.put("property-x", "x");
+        result.put("property-y", "y");
+        result.put("property-z", "z");
+        return result;
     }
 }

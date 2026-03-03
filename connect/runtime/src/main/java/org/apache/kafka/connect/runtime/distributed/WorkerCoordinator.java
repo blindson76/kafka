@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.connect.runtime.distributed;
 
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.clients.GroupRebalanceConfig;
 import org.apache.kafka.clients.consumer.CloseOptions;
 import org.apache.kafka.clients.consumer.internals.AbstractCoordinator;
@@ -49,6 +50,7 @@ import static org.apache.kafka.common.message.JoinGroupRequestData.JoinGroupRequ
 import static org.apache.kafka.common.message.JoinGroupResponseData.JoinGroupResponseMember;
 import static org.apache.kafka.common.utils.Utils.UncheckedCloseable;
 import static org.apache.kafka.connect.runtime.distributed.ConnectProtocolCompatibility.EAGER;
+import static org.apache.kafka.connect.runtime.distributed.ConnectProtocolCompatibility.UBER_V1;
 
 
 /**
@@ -59,7 +61,7 @@ public class WorkerCoordinator extends AbstractCoordinator implements Closeable 
     private final Logger log;
     private final String restUrl;
     private final ConfigBackingStore configStorage;
-    private volatile ExtendedAssignment assignmentSnapshot;
+    private volatile UberAssignmentV1 assignmentSnapshot;
     private ClusterConfigState configSnapshot;
     private final WorkerRebalanceListener listener;
     private final ConnectProtocolCompatibility protocolCompatibility;
@@ -70,6 +72,7 @@ public class WorkerCoordinator extends AbstractCoordinator implements Closeable 
     private volatile int lastCompletedGenerationId;
     private final ConnectAssignor eagerAssignor;
     private final ConnectAssignor incrementalAssignor;
+    private final ConnectAssignor uberAssignor;
     private final int coordinatorDiscoveryTimeoutMs;
 
     /**
@@ -84,6 +87,7 @@ public class WorkerCoordinator extends AbstractCoordinator implements Closeable 
                              String restUrl,
                              ConfigBackingStore configStorage,
                              WorkerRebalanceListener listener,
+                             ClusterAssignor clusterAssignor,
                              ConnectProtocolCompatibility protocolCompatibility,
                              int maxDelay) {
         super(config,
@@ -100,6 +104,17 @@ public class WorkerCoordinator extends AbstractCoordinator implements Closeable 
         this.listener = listener;
         this.rejoinRequested = false;
         this.protocolCompatibility = protocolCompatibility;
+
+        if (clusterAssignor == null) {
+            log.warn("No cluster assignor given; the default Kafka Connect rebalance protocol will be used and workload-based load balancing will be disabled");
+            this.uberAssignor = null;
+        } else {
+            this.uberAssignor = new UberAssignor(
+                    logContext,
+                    clusterAssignor
+            );
+        }
+
         this.incrementalAssignor = new IncrementalCooperativeAssignor(logContext, time, maxDelay);
         this.eagerAssignor = new EagerAssignor(logContext);
         this.currentConnectProtocol = protocolCompatibility;
@@ -181,18 +196,19 @@ public class WorkerCoordinator extends AbstractCoordinator implements Closeable 
     @Override
     public JoinGroupRequestProtocolCollection metadata() {
         configSnapshot = configStorage.snapshot();
-        final ExtendedAssignment localAssignmentSnapshot = assignmentSnapshot;
-        ExtendedWorkerState workerState = new ExtendedWorkerState(restUrl, configSnapshot.offset(), localAssignmentSnapshot);
+        final UberAssignmentV1 localAssignmentSnapshot = assignmentSnapshot;
+        UberWorkerState workerState = new UberWorkerState(restUrl, configSnapshot.offset(), localAssignmentSnapshot);
         return switch (protocolCompatibility) {
             case EAGER -> ConnectProtocol.metadataRequest(workerState);
             case COMPATIBLE -> IncrementalCooperativeConnectProtocol.metadataRequest(workerState, false);
             case SESSIONED -> IncrementalCooperativeConnectProtocol.metadataRequest(workerState, true);
+            case UBER_V1 -> UberConnectProtocol.metadataRequest(workerState);
         };
     }
 
     @Override
     protected void onJoinComplete(int generation, String memberId, String protocol, ByteBuffer memberAssignment) {
-        ExtendedAssignment newAssignment = IncrementalCooperativeConnectProtocol.deserializeAssignment(memberAssignment);
+        UberAssignmentV1 newAssignment = UberConnectProtocol.deserializeAssignment(memberAssignment);
         log.debug("Deserialized new assignment: {}", newAssignment);
         currentConnectProtocol = ConnectProtocolCompatibility.fromProtocol(protocol);
         // At this point we always consider ourselves to be a member of the cluster, even if there was an assignment
@@ -229,9 +245,19 @@ public class WorkerCoordinator extends AbstractCoordinator implements Closeable 
             throw new IllegalStateException("Can't skip assignment because Connect does not support static membership.");
 
         ConnectProtocolCompatibility protocolCompatibility = ConnectProtocolCompatibility.fromProtocol(protocol);
-        return protocolCompatibility == EAGER
-               ? eagerAssignor.performAssignment(leaderId, protocolCompatibility, allMemberMetadata, this)
-               : incrementalAssignor.performAssignment(leaderId, protocolCompatibility, allMemberMetadata, this);
+
+        final ConnectAssignor assignor;
+        if (protocolCompatibility == EAGER) {
+            assignor = eagerAssignor;
+        } else if (protocolCompatibility == UBER_V1) {
+            if (uberAssignor == null)
+                throw new IllegalStateException("Cannot perform assignment using protocol " + UBER_V1.protocol() + " when no cluster assignor has been configured");
+            assignor = uberAssignor;
+        } else {
+            assignor = incrementalAssignor;
+        }
+
+        return assignor.performAssignment(leaderId, protocolCompatibility, allMemberMetadata, this);
     }
 
     @Override
@@ -467,6 +493,10 @@ public class WorkerCoordinator extends AbstractCoordinator implements Closeable 
         private ConnectorsAndTasks(Collection<String> connectors, Collection<ConnectorTaskId> tasks) {
             this.connectors = connectors;
             this.tasks = tasks;
+        }
+
+        public static ConnectorsAndTasks of(Collection<String> connectors, Collection<ConnectorTaskId> tasks) {
+            return new Builder().with(connectors, tasks).build();
         }
 
         public static class Builder {

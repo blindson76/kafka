@@ -18,6 +18,9 @@ package org.apache.kafka.connect.connector;
 
 import org.apache.kafka.common.metrics.PluginMetrics;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * ConnectorContext allows {@link Connector}s to proactively interact with the Kafka Connect runtime.
  */
@@ -57,4 +60,15 @@ public interface ConnectorContext {
      * @since 4.1
      */
     PluginMetrics pluginMetrics();
+
+    /**
+     * @return the current task configs for the connector; may be empty, but never null
+     */
+    List<Map<String, String>> uberTaskConfigs();
+
+    /**
+     * @return the number of workers in the Kafka Connect cluster, or -1
+     * if the number of workers is not known, or 1 if this is a standalone worker
+     */
+    int uberClusterSize();
 }

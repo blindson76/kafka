@@ -336,9 +336,20 @@ public interface Herder {
      * Alter a connector's offsets.
      * @param connName the name of the connector whose offsets are to be altered
      * @param offsets a mapping from partitions to offsets that need to be written
+     * @param uberForce force the offset modification to take place even if the connector is not stopped
      * @param cb callback to invoke upon completion
      */
-    void alterConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, Callback<Message> cb);
+    void uberAlterConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, boolean uberForce, Callback<Message> cb);
+
+    /**
+     * Alter a connector's offsets.
+     * @param connName the name of the connector whose offsets are to be altered
+     * @param offsets a mapping from partitions to offsets that need to be written
+     * @param cb callback to invoke upon completion
+     */
+    default void alterConnectorOffsets(String connName, Map<Map<String, ?>, Map<String, ?>> offsets, Callback<Message> cb) {
+        uberAlterConnectorOffsets(connName, offsets, false, cb);
+    }
 
     /**
      * Reset a connector's offsets.

@@ -75,6 +75,8 @@ import static org.apache.kafka.connect.runtime.rest.HerderRequestHandler.Transla
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class ConnectorsResource {
+
+    public static final String UBER_FORCE_OFFSET_PATCH = "uber-force";
     private static final Logger log = LoggerFactory.getLogger(ConnectorsResource.class);
 
     private final Herder herder;
@@ -361,14 +363,16 @@ public class ConnectorsResource {
     @Operation(summary = "Alter the offsets for the specified connector")
     public Response alterConnectorOffsets(final @Parameter(hidden = true) @QueryParam("forward") Boolean forward,
                                           final @Context HttpHeaders headers, final @PathParam("connector") String connector,
-                                          final ConnectorOffsets offsets) throws Throwable {
+                                          final ConnectorOffsets offsets, @QueryParam(UBER_FORCE_OFFSET_PATCH) Boolean uberForce) throws Throwable {
         if (offsets.offsets() == null || offsets.offsets().isEmpty()) {
             throw new BadRequestException("Partitions / offsets need to be provided for an alter offsets request");
         }
 
         FutureCallback<Message> cb = new FutureCallback<>();
-        herder.alterConnectorOffsets(connector, offsets.toMap(), cb);
-        Message msg = requestHandler.completeOrForwardRequest(cb, "/connectors/" + connector + "/offsets", "PATCH", headers, offsets,
+        boolean uberForceOrDefault = uberForce != null ? uberForce : false;
+        herder.uberAlterConnectorOffsets(connector, offsets.toMap(), uberForceOrDefault, cb);
+        String path = "/connectors/" + connector + "/offsets" + (uberForce != null ? "?" + UBER_FORCE_OFFSET_PATCH + "=" + uberForce : "");
+        Message msg = requestHandler.completeOrForwardRequest(cb, path, "PATCH", headers, offsets,
                 new TypeReference<>() { }, new IdentityTranslator<>(), forward);
         return Response.ok().entity(msg).build();
     }

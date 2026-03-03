@@ -22,6 +22,7 @@ import java.util.Locale;
 import static org.apache.kafka.connect.runtime.distributed.ConnectProtocol.CONNECT_PROTOCOL_V0;
 import static org.apache.kafka.connect.runtime.distributed.IncrementalCooperativeConnectProtocol.CONNECT_PROTOCOL_V1;
 import static org.apache.kafka.connect.runtime.distributed.IncrementalCooperativeConnectProtocol.CONNECT_PROTOCOL_V2;
+import static org.apache.kafka.connect.runtime.distributed.UberConnectProtocol.UBER_CONNECT_PROTOCOL_V1;
 
 /**
  * An enumeration of the modes available to the worker to signal which Connect protocols are
@@ -73,6 +74,18 @@ public enum ConnectProtocolCompatibility {
         public short protocolVersion() {
             return CONNECT_PROTOCOL_V2;
         }
+    },
+
+    UBER_V1 {
+        @Override
+        public String protocol() {
+            return "uber-v1";
+        }
+
+        @Override
+        public short protocolVersion() {
+            return UBER_CONNECT_PROTOCOL_V1;
+        }
     };
 
     /**
@@ -103,6 +116,7 @@ public enum ConnectProtocolCompatibility {
             case CONNECT_PROTOCOL_V0 -> EAGER;
             case CONNECT_PROTOCOL_V1 -> COMPATIBLE;
             case CONNECT_PROTOCOL_V2 -> SESSIONED;
+            case UBER_CONNECT_PROTOCOL_V1 ->  UBER_V1;
             default -> throw new IllegalArgumentException("Unknown Connect protocol version: " + protocolVersion);
         };
     }

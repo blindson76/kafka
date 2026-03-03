@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.connect.runtime.isolation;
 
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.common.config.provider.ConfigProvider;
 import org.apache.kafka.connect.connector.policy.ConnectorClientConfigOverridePolicy;
 import org.apache.kafka.connect.rest.ConnectRestExtension;
@@ -42,6 +43,7 @@ public class PluginScanResult {
     private final SortedSet<PluginDesc<ConfigProvider>> configProviders;
     private final SortedSet<PluginDesc<ConnectRestExtension>> restExtensions;
     private final SortedSet<PluginDesc<ConnectorClientConfigOverridePolicy>> connectorClientConfigPolicies;
+    private final SortedSet<PluginDesc<ClusterAssignor>> clusterAssignors;
 
     private final List<SortedSet<? extends PluginDesc<?>>> allPlugins;
 
@@ -54,7 +56,8 @@ public class PluginScanResult {
             SortedSet<PluginDesc<Predicate<?>>> predicates,
             SortedSet<PluginDesc<ConfigProvider>> configProviders,
             SortedSet<PluginDesc<ConnectRestExtension>> restExtensions,
-            SortedSet<PluginDesc<ConnectorClientConfigOverridePolicy>> connectorClientConfigPolicies
+            SortedSet<PluginDesc<ConnectorClientConfigOverridePolicy>> connectorClientConfigPolicies,
+            SortedSet<PluginDesc<ClusterAssignor>> clusterAssignors
     ) {
         this.sinkConnectors = sinkConnectors;
         this.sourceConnectors = sourceConnectors;
@@ -65,9 +68,10 @@ public class PluginScanResult {
         this.configProviders = configProviders;
         this.restExtensions = restExtensions;
         this.connectorClientConfigPolicies = connectorClientConfigPolicies;
+        this.clusterAssignors = clusterAssignors;
         this.allPlugins =
             List.of(sinkConnectors, sourceConnectors, converters, headerConverters, transformations, predicates,
-                    configProviders, restExtensions, connectorClientConfigPolicies);
+                    configProviders, restExtensions, connectorClientConfigPolicies, clusterAssignors);
     }
 
     /**
@@ -83,7 +87,8 @@ public class PluginScanResult {
                 merge(results, PluginScanResult::predicates),
                 merge(results, PluginScanResult::configProviders),
                 merge(results, PluginScanResult::restExtensions),
-                merge(results, PluginScanResult::connectorClientConfigPolicies)
+                merge(results, PluginScanResult::connectorClientConfigPolicies),
+                merge(results, PluginScanResult::clusterAssignors)
         );
     }
 
@@ -129,6 +134,10 @@ public class PluginScanResult {
 
     public SortedSet<PluginDesc<ConnectorClientConfigOverridePolicy>> connectorClientConfigPolicies() {
         return connectorClientConfigPolicies;
+    }
+
+    public SortedSet<PluginDesc<ClusterAssignor>> clusterAssignors() {
+        return clusterAssignors;
     }
 
     public void forEach(Consumer<PluginDesc<?>> consumer) {

@@ -17,6 +17,8 @@
 
 package org.apache.kafka.connect.runtime.health;
 
+import org.apache.kafka.common.utils.Time;
+import org.apache.kafka.common.utils.Timer;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.health.ConnectClusterDetails;
 import org.apache.kafka.connect.health.ConnectClusterState;
@@ -25,18 +27,26 @@ import org.apache.kafka.connect.health.ConnectorState;
 import org.apache.kafka.connect.health.ConnectorType;
 import org.apache.kafka.connect.health.TaskState;
 import org.apache.kafka.connect.runtime.Herder;
+import org.apache.kafka.connect.runtime.distributed.RebalanceNeededException;
 import org.apache.kafka.connect.runtime.rest.entities.ConnectorStateInfo;
+import org.apache.kafka.connect.runtime.rest.entities.TaskInfo;
 import org.apache.kafka.connect.util.FutureCallback;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class ConnectClusterStateImpl implements ConnectClusterState {
+
+    private static final Logger log = LoggerFactory.getLogger(ConnectClusterStateImpl.class);
     
     private final long herderRequestTimeoutMs;
     private final ConnectClusterDetails clusterDetails;
@@ -84,19 +94,31 @@ public class ConnectClusterStateImpl implements ConnectClusterState {
     public Map<String, String> connectorConfig(String connName) {
         FutureCallback<Map<String, String>> connectorConfigCallback = new FutureCallback<>();
         herder.connectorConfig(connName, connectorConfigCallback);
-        try {
-            return new HashMap<>(connectorConfigCallback.get(herderRequestTimeoutMs, TimeUnit.MILLISECONDS));
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new ConnectException(
-                String.format("Failed to retrieve configuration for connector '%s'", connName),
-                e
-            );
-        }
+        String operation = "retrieve configuration for connector '" + connName + "'";
+        return getWithRetry(connectorConfigCallback, operation);
     }
 
     @Override
     public ConnectClusterDetails clusterDetails() {
         return clusterDetails;
+    }
+
+    // TODO: This patch can definitely be contributed upstream
+    private <T> T getWithRetry(Future<T> future, String operation) {
+        Timer timer = Time.SYSTEM.timer(herderRequestTimeoutMs);
+        while (true) {
+            try {
+                timer.update();
+                long remainingMs = Math.max(1, timer.remainingMs());
+                return future.get(remainingMs, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | TimeoutException | ExecutionException e) {
+                if (e instanceof ExecutionException && e.getCause() instanceof RebalanceNeededException cause) {
+                    log.debug("Failed to {} due to pending rebalance; will retry", operation, cause);
+                    continue;
+                }
+                throw new ConnectException("Failed to " + operation, e);
+            }
+        }
     }
 
     private Map<Integer, TaskState> taskStates(List<ConnectorStateInfo.TaskState> states) {

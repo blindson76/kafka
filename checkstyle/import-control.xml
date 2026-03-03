@@ -482,6 +482,9 @@
   </subpackage>
 
   <subpackage name="connect">
+
+    <allow pkg="com.uber.data.kafka.connect" />
+
     <allow pkg="org.apache.kafka.common" />
     <allow pkg="org.apache.kafka.connect.data" />
     <allow pkg="org.apache.kafka.connect.errors" />

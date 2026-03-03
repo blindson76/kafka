@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -293,7 +294,39 @@ public class TestableSourceConnector extends SampleSourceConnector {
     }
 
     public static Map<String, Object> sourcePartition(String taskId) {
-        return Map.of("task.id", taskId);
+        // LinkedHashMap guarantees iteration order, which matters during serialization
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("task.id", taskId);
+        // Garbage key/value pairs to ensure that serialization and deserialization of
+        // source partitions with multiple fields works
+        // We put task ID first to make sure that the actual order of key/value pairs
+        // is preserved, instead of something else (like sorting them lexicographically)
+        result.put("property-a", "a");
+        result.put("property-b", "b");
+        result.put("property-c", "c");
+        result.put("property-d", "d");
+        result.put("property-e", "e");
+        result.put("property-f", "f");
+        result.put("property-g", "g");
+        result.put("property-h", "h");
+        result.put("property-i", "i");
+        result.put("property-j", "j");
+        result.put("property-k", "k");
+        result.put("property-l", "l");
+        result.put("property-m", "m");
+        result.put("property-n", "n");
+        result.put("property-o", "o");
+        result.put("property-p", "p");
+        result.put("property-q", "q");
+        result.put("property-r", "r");
+        result.put("property-s", "s");
+        result.put("property-t", "t");
+        result.put("property-u", "u");
+        result.put("property-v", "v");
+        result.put("property-x", "x");
+        result.put("property-y", "y");
+        result.put("property-z", "z");
+        return result;
     }
 
     public static Map<String, Object> sourceOffset(long seqno) {

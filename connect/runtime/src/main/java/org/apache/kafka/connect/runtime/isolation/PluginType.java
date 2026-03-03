@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.connect.runtime.isolation;
 
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.common.config.provider.ConfigProvider;
 import org.apache.kafka.connect.connector.policy.ConnectorClientConfigOverridePolicy;
 import org.apache.kafka.connect.rest.ConnectRestExtension;
@@ -39,7 +40,8 @@ public enum PluginType {
     PREDICATE(Predicate.class),
     CONFIGPROVIDER(ConfigProvider.class),
     REST_EXTENSION(ConnectRestExtension.class),
-    CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY(ConnectorClientConfigOverridePolicy.class);
+    CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY(ConnectorClientConfigOverridePolicy.class),
+    CLUSTER_ASSIGNOR(ClusterAssignor.class);
 
     private final Class<?> klass;
 

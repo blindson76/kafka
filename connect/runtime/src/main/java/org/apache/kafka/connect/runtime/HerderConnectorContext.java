@@ -20,9 +20,15 @@ import org.apache.kafka.common.metrics.PluginMetrics;
 import org.apache.kafka.common.metrics.internals.PluginMetricsImpl;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.kafka.connect.storage.ClusterConfigState;
+import org.apache.kafka.connect.util.ConnectorTaskId;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.IntStream;
 
 /**
  * ConnectorContext for use with a Herder
@@ -77,5 +83,20 @@ public class HerderConnectorContext implements CloseableConnectorContext {
     public void close() {
         Utils.closeQuietly(pluginMetrics, "Plugin metrics for " + connectorName);
         closed = true;
+    }
+
+    @Override
+    public List<Map<String, String>> uberTaskConfigs() {
+        ClusterConfigState snapshot = herder.uberConfigSnapshot();
+        int numTasks = snapshot.taskCount(connectorName);
+        return IntStream.range(0, numTasks)
+                .mapToObj(i -> new ConnectorTaskId(connectorName, i))
+                .map(snapshot::taskConfig)
+                .toList();
+    }
+
+    @Override
+    public int uberClusterSize() {
+        return herder.uberClusterSize();
     }
 }
