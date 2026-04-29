@@ -16,7 +16,6 @@
  */
 package org.apache.kafka.connect.runtime.distributed;
 
-import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.ClientUtils;
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -42,6 +41,8 @@ import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.connect.runtime.WorkerConfig;
 import org.apache.kafka.connect.storage.ConfigBackingStore;
 import org.apache.kafka.connect.util.ConnectorTaskId;
+
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 
 import org.slf4j.Logger;
 

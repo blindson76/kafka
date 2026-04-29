@@ -16,7 +16,6 @@
  */
 package org.apache.kafka.connect.runtime.isolation;
 
-import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.common.config.provider.ConfigProvider;
 import org.apache.kafka.connect.connector.policy.ConnectorClientConfigOverridePolicy;
 import org.apache.kafka.connect.rest.ConnectRestExtension;
@@ -28,6 +27,7 @@ import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.connect.transforms.predicates.Predicate;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 
 import java.util.Locale;
 

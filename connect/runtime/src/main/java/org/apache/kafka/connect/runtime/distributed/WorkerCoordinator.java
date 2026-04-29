@@ -16,7 +16,6 @@
  */
 package org.apache.kafka.connect.runtime.distributed;
 
-import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.clients.GroupRebalanceConfig;
 import org.apache.kafka.clients.consumer.CloseOptions;
 import org.apache.kafka.clients.consumer.internals.AbstractCoordinator;
@@ -30,6 +29,8 @@ import org.apache.kafka.common.utils.Timer;
 import org.apache.kafka.connect.storage.ClusterConfigState;
 import org.apache.kafka.connect.storage.ConfigBackingStore;
 import org.apache.kafka.connect.util.ConnectorTaskId;
+
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 
 import org.slf4j.Logger;
 

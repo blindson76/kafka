@@ -16,7 +16,6 @@
  */
 package org.apache.kafka.connect.runtime.distributed;
 
-import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.MetadataRecoveryStrategy;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -26,6 +25,8 @@ import org.apache.kafka.common.config.TopicConfig;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.connect.runtime.WorkerConfig;
+
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

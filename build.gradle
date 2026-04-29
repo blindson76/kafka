@@ -430,6 +430,7 @@ subprojects {
 
     if (shouldSign) {
       signing {
+        useGpgCmd()
         sign publishing.publications.mavenJava
       }
     }
@@ -3644,10 +3645,7 @@ project(':connect:runtime') {
     implementation libs.classgraph
     implementation libs.mavenArtifact
     implementation libs.swaggerAnnotations
-    // TODO: We should not be hacking the :connect:runtime module with our own dependencies; instead,
-    //       we should be adding them to the classpath
-    //       This is also causing embedded integration tests to fail ☹️
-    implementation ('com.uber.kafka:kafka-upki-provider:1.0.1-217732-a4c6b554904e-java-monorepo')
+    implementation 'com.uber.kafka:kafka-upki-provider-shaded:1.20.0-chrise-5'
 
     compileOnly libs.bndlib
     compileOnly libs.spotbugs
@@ -3677,8 +3675,7 @@ project(':connect:runtime') {
     testImplementation libs.junitJupiter
     testImplementation libs.mockitoCore
     testImplementation libs.mockitoJunitJupiter
-    // TODO: Conflicts with Kafka UPKI provider
-//    testImplementation libs.httpclient
+    testImplementation libs.httpclient
     testImplementation testLog4j2Libs
 
     testCompileOnly libs.bndlib
@@ -3990,14 +3987,6 @@ project(':connect:uber') {
     archivesName = "connect-uber"
   }
 
-  task genUReplicator3Config(type: JavaExec) {
-    classpath sourceSets.main.runtimeClasspath
-    classpath sourceSets.main.compileClasspath
-    mainClass = 'com.uber.data.kafka.connect.ureplicator3.UReplicator3ConnectorConfig'
-    if( !generatedDocsDir.exists() ) { generatedDocsDir.mkdirs() }
-    standardOutput = new File(generatedDocsDir, "ureplicator3_config.html").newOutputStream()
-  }
-
   dependencies {
     implementation 'com.google.guava:guava:23.0'
     implementation 'com.uber.m3:tally-core:0.11.1'
@@ -4153,9 +4142,9 @@ def updateVersionTask = tasks.register('updateVersion') {
     def rawVersion
     if (project.hasProperty('newVersion')) {
       rawVersion = newVersion
-      if (!rawVersion.matches(/^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$/)) {
-        throw new GradleException("Invalid version format: '${rawVersion}'. Expected format: X.Y.Z or X.Y.Z-SNAPSHOT")
-      }
+//      if (!rawVersion.matches(/^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$/)) {
+//        throw new GradleException("Invalid version format: '${rawVersion}'. Expected format: X.Y.Z or X.Y.Z-SNAPSHOT")
+//      }
       // Update gradle.properties
       def gradlePropsFile = file("${project.rootDir}/gradle.properties")
       if (gradlePropsFile.exists()) {

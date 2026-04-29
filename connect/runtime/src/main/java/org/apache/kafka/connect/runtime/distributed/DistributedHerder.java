@@ -16,7 +16,6 @@
  */
 package org.apache.kafka.connect.runtime.distributed;
 
-import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.ConfigDef;
@@ -79,6 +78,8 @@ import org.apache.kafka.connect.util.FutureCallback;
 import org.apache.kafka.connect.util.SinkUtils;
 import org.apache.kafka.connect.util.Stage;
 import org.apache.kafka.connect.util.TemporaryStage;
+
+import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 
 import org.slf4j.Logger;
 

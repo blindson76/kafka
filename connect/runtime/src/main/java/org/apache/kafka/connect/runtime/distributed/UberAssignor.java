@@ -16,11 +16,12 @@
  */
 package org.apache.kafka.connect.runtime.distributed;
 
+import org.apache.kafka.common.utils.LogContext;
+import org.apache.kafka.connect.storage.ClusterConfigState;
+
 import com.uber.data.kafka.connect.distributed.ClusterAssignor;
 import com.uber.data.kafka.connect.distributed.ConnectorTaskId;
 import com.uber.data.kafka.connect.distributed.ConnectorsAndTasks;
-import org.apache.kafka.common.utils.LogContext;
-import org.apache.kafka.connect.storage.ClusterConfigState;
 
 import org.slf4j.Logger;
 
