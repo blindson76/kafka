@@ -855,6 +855,10 @@ public class LocalLog {
             if (!segment.hasSuffix(DELETED_FILE_SUFFIX)) {
                 segment.changeFileSuffixes("", DELETED_FILE_SUFFIX);
             }
+            // Close all file handlers of the segment to release OS-level file handles and memory mappings
+            // before scheduling the actual deletion. On Windows, files cannot be deleted while they have
+            // open file channels or active memory-mapped byte buffers (MappedByteBuffer).
+            segment.closeHandlers();
         }
 
         Runnable deleteSegments = () -> {
